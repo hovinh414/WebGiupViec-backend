@@ -11,11 +11,12 @@ const app = express();
 
 app.use(
   cors({
-    origin: "*",
+    origin: ["https://we-shine.vercel.app", "https://we-shine-admin.vercel.app"],
     methods: "GET,POST,PUT,PATCH,DELETE",
     allowedHeaders: "Content-Type,Authorization",
   })
 );
+
 
 app.use(express.json());
 
