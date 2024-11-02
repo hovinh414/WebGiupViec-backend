@@ -196,8 +196,14 @@ export const deleteService = async (req, res) => {
 // Get all services with pagination and optional categoryId filter
 export const getAllServices = async (req, res) => {
   try {
-    const { page = 1, limit = 10, categoryId } = req.query;
-    const filter = categoryId ? { categoryId } : {};
+    const { page = 1, limit = 10, categoryId, search = "" } = req.query;
+    const filter = {
+      ...((categoryId && { categoryId }) || {}),
+      ...(search && {
+        serviceName: { $regex: new RegExp(search, "i") }, // Tìm kiếm không phân biệt hoa/thường
+      }),
+    };
+
     const skip = (page - 1) * limit;
 
     const services = await Service.find(filter)

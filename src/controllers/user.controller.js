@@ -4,6 +4,7 @@ import nodemailer from "nodemailer";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import moment from "moment";
 import WorkSchedule from "../models/workSchedule.model.js";
+import Service from "../models/service.model.js";
 import FavoriteStaff from "../models/favoriteStaff.model.js";
 import mongoose from "mongoose";
 
@@ -225,6 +226,7 @@ export const getAllStaffByServiceId = async (req, res) => {
   try {
     const { serviceId } = req.params;
     let { bookingTime, userId } = req.query;
+
     // Chuẩn hóa định dạng `bookingTime`
     if (
       bookingTime &&
@@ -242,16 +244,25 @@ export const getAllStaffByServiceId = async (req, res) => {
         .send(new ApiResponse(400, null, "Định dạng bookingTime không hợp lệ"));
     }
 
-    // Lấy danh sách nhân viên có `active: true` với `serviceId` chỉ định
+    // Lấy thông tin của dịch vụ để kiểm tra `address`
+    const service = await Service.findById(serviceId).select("address");
+    if (!service) {
+      return res
+        .status(404)
+        .send(new ApiResponse(404, null, "Dịch vụ không tồn tại"));
+    }
+
+    // Lấy danh sách nhân viên có `active: true`, `serviceId` chỉ định và `address` khớp với `address` của dịch vụ
     const staffList = await User.find({
       role: "staff",
       active: true,
       serviceIds: serviceId,
+      address: service.address, // Kiểm tra `address` của nhân viên phải khớp với `address` của dịch vụ
     }).select("-password");
 
     // Lấy danh sách `staffId` được yêu thích của `userId`
     const favoriteStaffIds = await FavoriteStaff.find({
-      customerId: new mongoose.Types.ObjectId(userId), // đảm bảo `userId` là `ObjectId`
+      customerId: new mongoose.Types.ObjectId(userId),
     }).distinct("staffId");
 
     const availableStaff = [];
@@ -298,7 +309,7 @@ export const getAllStaffByServiceId = async (req, res) => {
         new ApiResponse(
           200,
           availableStaff,
-          "Danh sách staff có lịch làm việc phù hợp với bookingTime"
+          "Danh sách staff có lịch làm việc phù hợp với bookingTime và cùng địa chỉ"
         )
       );
   } catch (error) {
