@@ -60,7 +60,7 @@ export const approveAccount = async (req, res) => {
         );
     }
 
-    const randomPassword = Math.random().toString(36).slice(-8);
+    const randomPassword = "123456aA@";
     const hashedPassword = await bcrypt.hash(randomPassword, 10);
 
     user.password = hashedPassword;
@@ -79,7 +79,7 @@ export const approveAccount = async (req, res) => {
       from: process.env.EMAIL_USER,
       to: user.email,
       subject: "Tài khoản của bạn đã được kích hoạt",
-      text: `Tài khoản của bạn đã được kích hoạt thành công. Mật khẩu của bạn là: ${randomPassword}`,
+      text: `Tài khoản của bạn đã được kích hoạt thành công. Mật khẩu của bạn là: 123456aA@`,
     };
 
     await transporter.sendMail(mailOptions);
@@ -225,7 +225,7 @@ export const changePassword = async (req, res) => {
 export const getAllStaffByServiceId = async (req, res) => {
   try {
     const { serviceId } = req.params;
-    let { bookingTime, userId } = req.query;
+    let { bookingTime, userId, address } = req.query; // Lấy `address` từ `req.query`
 
     // Chuẩn hóa định dạng `bookingTime`
     if (
@@ -244,20 +244,12 @@ export const getAllStaffByServiceId = async (req, res) => {
         .send(new ApiResponse(400, null, "Định dạng bookingTime không hợp lệ"));
     }
 
-    // Lấy thông tin của dịch vụ để kiểm tra `address`
-    const service = await Service.findById(serviceId).select("address");
-    if (!service) {
-      return res
-        .status(404)
-        .send(new ApiResponse(404, null, "Dịch vụ không tồn tại"));
-    }
-
-    // Lấy danh sách nhân viên có `active: true`, `serviceId` chỉ định và `address` khớp với `address` của dịch vụ
+    // Lấy danh sách nhân viên có `active: true`, `serviceId` chỉ định và `address` khớp với địa chỉ từ `req.query`
     const staffList = await User.find({
       role: "staff",
       active: true,
       serviceIds: serviceId,
-      address: service.address, // Kiểm tra `address` của nhân viên phải khớp với `address` của dịch vụ
+      address, // Kiểm tra `address` của nhân viên khớp với `address` từ `req.query`
     }).select("-password");
 
     // Lấy danh sách `staffId` được yêu thích của `userId`
@@ -506,19 +498,25 @@ export const lockUser = async (req, res) => {
         .send(new ApiResponse(404, null, "Không tìm thấy người dùng"));
     }
 
-    user.active = false;
+    // Đổi trạng thái active: nếu true -> false, nếu false -> true
+    user.active = !user.active;
     await user.save();
 
-    res
-      .status(200)
-      .send(new ApiResponse(200, user, "Tài khoản người dùng đã bị khóa"));
+    const message = user.active
+      ? "Tài khoản người dùng đã được mở khóa"
+      : "Tài khoản người dùng đã bị khóa";
+
+    res.status(200).send(new ApiResponse(200, user, message));
   } catch (error) {
-    console.error("Lỗi khi khóa người dùng:", error);
+    console.error("Lỗi khi thay đổi trạng thái người dùng:", error);
     res
       .status(500)
-      .send(new ApiResponse(500, error, "Khóa người dùng thất bại"));
+      .send(
+        new ApiResponse(500, error, "Thay đổi trạng thái người dùng thất bại")
+      );
   }
 };
+
 export const getAllStaff = async (req, res) => {
   try {
     console.log("Fetching staff members...");

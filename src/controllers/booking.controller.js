@@ -6,6 +6,13 @@ import Service from "../models/service.model.js";
 import mongoose from "mongoose";
 import FavoriteStaff from "../models/favoriteStaff.model.js";
 
+function removeVietnameseTones(str) {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D");
+}
 export const getAllBooking = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -13,20 +20,32 @@ export const getAllBooking = async (req, res) => {
     const skip = (page - 1) * limit;
     const search = req.query.search || "";
 
-    const query = {
-      $or: [
-        { status: { $regex: search, $options: "i" } },
-        // Có thể thêm các trường tìm kiếm khác như customerId hoặc serviceId nếu cần
-      ],
-    };
+    // Chuyển đổi search thành không dấu
+    const searchNonAccent = removeVietnameseTones(search);
 
+    // Lấy dữ liệu từ các collection và áp dụng lọc ở ứng dụng
     const [bookings, totalBookings] = await Promise.all([
-      Booking.find(query)
-        .sort({ bookingTime: 1 }) // Sắp xếp theo bookingTime tăng dần (cũ nhất đến mới nhất)
+      Booking.find({})
+        .sort({ bookingTime: 1 })
         .skip(skip)
         .limit(limit)
-        .populate("customerId serviceId preferredStaffId assignedStaffId"),
-      Booking.countDocuments(query),
+        .populate("customerId serviceId preferredStaffId assignedStaffId")
+        .then((results) =>
+          results.filter((booking) => {
+            const customerName = booking.customerId?.name || "";
+            const customerPhone = booking.customerId?.phone || "";
+            const serviceName = booking.serviceId?.serviceName || "";
+            const status = booking.status || "";
+
+            return (
+              removeVietnameseTones(customerName).includes(searchNonAccent) ||
+              removeVietnameseTones(customerPhone).includes(searchNonAccent) ||
+              removeVietnameseTones(serviceName).includes(searchNonAccent) ||
+              removeVietnameseTones(status).includes(searchNonAccent)
+            );
+          })
+        ),
+      Booking.countDocuments(),
     ]);
 
     const totalPages = Math.ceil(totalBookings / limit);

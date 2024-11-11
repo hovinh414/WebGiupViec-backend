@@ -11,7 +11,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: ["https://we-shine.vercel.app", "https://we-shine-admin.vercel.app"],
+    origin: ["https://we-shine.vercel.app", "https://we-shine-admin.vercel.app", "http://localhost:3000", "http://localhost:3001"],
     methods: "GET,POST,PUT,PATCH,DELETE",
     allowedHeaders: "Content-Type,Authorization",
   })
